@@ -11,5 +11,8 @@ A movie recommender that lets a user filter by genre, runtime, and language, and
 ## Prerequisites
 
 - [Anaconda](https://www.anaconda.com/download) (or Miniconda)
-- A free [TMDB API key](https://www.themoviedb.org/settings/api)# Movie-Recommender
-Movie Recommender Python Projec
+- A free [TMDB API key](https://www.themoviedb.org/settings/api)
+
+## Setup
+
+_(coming soon — once requirements.txt and recommender.py exist)_
