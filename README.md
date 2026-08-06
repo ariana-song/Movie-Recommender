@@ -17,30 +17,30 @@ A movie recommender that lets a user filter by genre, runtime, and language, and
 
 ### 1. Clone the repository
 
-\`\`\`bash
+```bash
 git clone https://github.com/ariana-song/movie-recommender.git
 cd movie-recommender
-\`\`\`
+```
 
 ### 2. Create and activate a virtual environment (via Anaconda)
 
-\`\`\`bash
+```bash
 conda create -n movie-recommender python=3.12
 conda activate movie-recommender
-\`\`\`
+```
 
 ### 3. Install dependencies
 
-\`\`\`bash
+```bash
 pip install -r requirements.txt
-\`\`\`
+```
 
 ### 4. Set your environment variables
 
 Create a file named `.env` in the project root with the following line:
 
-\`\`\`
+```
 TMDB_API_KEY=your_actual_key_here
-\`\`\`
+```
 
 Replace `your_actual_key_here` with your own TMDB API key (get one free at https://www.themoviedb.org/settings/api). This file is excluded from version control via `.gitignore` and will never be committed.
