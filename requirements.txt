@@ -1,4 +1,4 @@
 requests
 python-dotenv
-ipywidgets
 pytest
+flask

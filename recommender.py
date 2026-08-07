@@ -10,6 +10,29 @@ import requests
 
 BASE_URL = "https://api.themoviedb.org/3"
 
+# TMDB identifies genres by number, not by name, so we need this translation table.
+# Source: https://api.themoviedb.org/3/genre/movie/list
+GENRE_IDS = {
+    "Action": 28,
+    "Adventure": 12,
+    "Animation": 16,
+    "Comedy": 35,
+    "Crime": 80,
+    "Documentary": 99,
+    "Drama": 18,
+    "Family": 10751,
+    "Fantasy": 14,
+    "History": 36,
+    "Horror": 27,
+    "Music": 10402,
+    "Mystery": 9648,
+    "Romance": 10749,
+    "Science Fiction": 878,
+    "Thriller": 53,
+    "War": 10752,
+    "Western": 37,
+}
+
 # TMDB's language filter expects ISO 639-1 codes, not full names.
 # This maps common language names to their codes.
 LANGUAGE_MAP = {
@@ -113,7 +136,7 @@ def clean_results(results):
 def get_recommendations(api_key, genre_name, min_runtime, max_runtime,
                          language="English", max_results=10):
     """
-    Convenience wrapper: fetches the genre map, queries discover_movies,
+    Convenience wrapper: uses the local GENRE_IDS table, queries discover_movies,
     and returns cleaned results in one call. This is the function the UI
     layer will call directly.
 
@@ -128,7 +151,7 @@ def get_recommendations(api_key, genre_name, min_runtime, max_runtime,
     Returns:
         list[dict]: cleaned movie results, or an empty list if none match.
     """
-    genre_map = get_genre_map(api_key)
+    genre_map = GENRE_IDS
     raw_results = discover_movies(
         api_key, genre_map, genre_name, min_runtime, max_runtime,
         language=language, max_results=max_results,

@@ -5,9 +5,14 @@
 __pycache__/
 *.pyc
 .pytest_cache/
+.venv/
+venv/
 
 # Jupyter
 .ipynb_checkpoints/
+
+# Vercel
+.vercel/
 
 # OS
 .DS_Store
