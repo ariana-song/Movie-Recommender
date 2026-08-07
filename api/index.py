@@ -46,8 +46,8 @@ def to_int(value, default_value):
         return default_value
 
 
-@app.route("/", methods=["GET", "POST"])
-def home():
+def render_home():
+    """Shared handler for the one page of the app."""
     genres = sorted(GENRE_IDS.keys())
     languages = sorted(LANGUAGE_MAP.keys())
 
@@ -60,7 +60,8 @@ def home():
     if api_key == "":
         return build_page(
             answers, genres, languages,
-            error="Missing TMDB_API_KEY. Add it to your .env file (see .env.example).",
+            error="Missing TMDB_API_KEY. Set it in Vercel Environment Variables "
+                  "(or in .env locally).",
         )
 
     try:
@@ -82,6 +83,14 @@ def home():
         )
 
     return build_page(answers, genres, languages, movies=movies)
+
+
+# Vercel rewrites "/" to "/api/index", so Flask may see that path instead of "/".
+# Catch every path so the same page always loads.
+@app.route("/", defaults={"path": ""}, methods=["GET", "POST"])
+@app.route("/<path:path>", methods=["GET", "POST"])
+def home(path):
+    return render_home()
 
 
 if __name__ == "__main__":
