@@ -1,53 +1,42 @@
 """
 chatbot.py was generated using AI. We were interested in how Claude would recommend movies.
 
-Also added a thumbs up/ thumbs down feature to the chatbot to improve recommendations over time.
+Claude layer on top of recommender.py. Two calls:
+  1. plan_search -> which genres to exclude, and what this user likes
+  2. pick_movies -> choose the best movies out of the TMDB results
 
-Simple Claude chatbot layer on top of recommender.py.
-
+A thumbs up/down entry looks like:
+  "Superbad :: 2007, Comedy, rating 7.2 - Two friends try to buy alcohol..."
 """
 
 import json
 import os
-import re
 
 import requests
 from dotenv import load_dotenv
 
-from recommender import GENRE_IDS, LANGUAGE_MAP
+from recommender import GENRE_IDS
 
 load_dotenv()
 
 CLAUDE_URL = "https://api.anthropic.com/v1/messages"
 CLAUDE_MODEL = "claude-sonnet-5"
-CLAUDE_VERSION = "2023-06-01"
 
 
-def get_claude_key():
-    """Return the Anthropic API key, or "" if it is missing."""
-    key = os.getenv("ANTHROPIC_API_KEY")
-    if key is None:
-        return ""
-    return key.strip()
+def claude_key():
+    return (os.getenv("ANTHROPIC_API_KEY") or "").strip()
 
 
 def ask_claude(system_prompt, user_prompt):
     """
-    Send one question to Claude and return the text answer.
+    Ask Claude one question and return its answer as a dictionary.
 
     NOTE: the book uses requests.get. Claude needs requests.post because we
-    are sending a question in the request body, not just reading a URL.
+    send the question in the request body instead of in the URL.
     """
-    api_key = get_claude_key()
-    if api_key == "":
-        raise ValueError(
-            "Missing ANTHROPIC_API_KEY. Add it to .env (local) or "
-            "Vercel Environment Variables."
-        )
-
     headers = {
-        "x-api-key": api_key,
-        "anthropic-version": CLAUDE_VERSION,
+        "x-api-key": claude_key(),
+        "anthropic-version": "2023-06-01",
         "content-type": "application/json",
     }
     body = {
@@ -59,185 +48,123 @@ def ask_claude(system_prompt, user_prompt):
 
     response = requests.post(CLAUDE_URL, headers=headers, json=body, timeout=60)
     if response.status_code != 200:
-        raise ValueError(
-            f"Claude returned an error (status {response.status_code}). "
-            "Check your API key and try again."
-        )
+        raise ValueError(f"Claude error {response.status_code}")
 
-    data = response.json()
-    # Claude returns a list of content blocks; we only want the text ones.
-    parts = []
-    for block in data.get("content", []):
-        if block.get("type") == "text":
-            parts.append(block.get("text", ""))
-    return "".join(parts).strip()
+    text = ""
+    for block in response.json()["content"]:
+        if block["type"] == "text":
+            text += block["text"]
 
-
-def extract_json(text):
-    """
-    Pull the first JSON object out of Claude's answer.
-    Claude sometimes wraps JSON in ```json ... ``` fences.
-    """
-    fence = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, re.DOTALL)
-    if fence:
-        return json.loads(fence.group(1))
-
+    # Claude sometimes wraps JSON in ``` fences, so read first { to last }
     start = text.find("{")
     end = text.rfind("}")
-    if start == -1 or end == -1 or end <= start:
-        raise ValueError("Claude did not return usable JSON.")
+    if start == -1 or end == -1:
+        raise ValueError("Claude did not return JSON.")
     return json.loads(text[start:end + 1])
 
 
-def default_plan(user_message):
-    """Safe fallback filters if Claude is unavailable."""
-    return {
-        "genre": "Comedy",
-        "language": "English",
-        "min_runtime": 0,
-        "max_runtime": 150,
-        "reply": (
-            "Claude is offline, so I used default Comedy filters. "
-            "Add ANTHROPIC_API_KEY to enable the chatbot. "
-            f"(You said: {user_message})"
-        ),
-    }
+def feedback_list(entries):
+    """Format thumbs entries for the prompt."""
+    if not entries:
+        return "  (none yet)"
+    return "\n".join(f"  - {entry}" for entry in entries)
 
 
-def validate_plan(plan):
-    """
-    Make sure Claude's filters are ones our app actually supports.
-    Never trust the AI blindly — check every field.
-    """
-    genres = list(GENRE_IDS.keys())
-    languages = list(LANGUAGE_MAP.keys())
-
-    genre = str(plan.get("genre", "Comedy")).strip()
-    if genre not in GENRE_IDS:
-        # try case-insensitive match
-        matched = None
-        for name in genres:
-            if name.lower() == genre.lower():
-                matched = name
-                break
-        genre = matched if matched else "Comedy"
-
-    language = str(plan.get("language", "English")).strip()
-    if language not in LANGUAGE_MAP:
-        matched = None
-        for name in languages:
-            if name.lower() == language.lower():
-                matched = name
-                break
-        language = matched if matched else "English"
-
-    try:
-        min_runtime = int(plan.get("min_runtime", 0))
-    except (TypeError, ValueError):
-        min_runtime = 0
-    try:
-        max_runtime = int(plan.get("max_runtime", 150))
-    except (TypeError, ValueError):
-        max_runtime = 150
-
-    if min_runtime < 0:
-        min_runtime = 0
-    if max_runtime > 400:
-        max_runtime = 400
-    if min_runtime > max_runtime:
-        min_runtime, max_runtime = 0, 150
-
-    reply = str(plan.get("reply", "Here are some movies you might like.")).strip()
-    if reply == "":
-        reply = "Here are some movies you might like."
-
-    return {
-        "genre": genre,
-        "language": language,
-        "min_runtime": min_runtime,
-        "max_runtime": max_runtime,
-        "reply": reply,
-    }
-
-
-def plan_search(user_message, liked_titles, disliked_titles, already_shown):
-    """
-    Ask Claude how to search, using the user's message AND their thumbs feedback.
-
-    Params:
-        user_message : what the user typed in the chat
-        liked_titles : list of movie titles they thumbs-upped
-        disliked_titles : list of movie titles they thumbs-downed
-        already_shown : titles we already showed (avoid repeats)
-    Returns:
-        dict with genre, language, min_runtime, max_runtime, reply
-    """
-    if get_claude_key() == "":
-        return default_plan(user_message)
-
-    genres = ", ".join(sorted(GENRE_IDS.keys()))
-    languages = ", ".join(sorted(LANGUAGE_MAP.keys()))
+def plan_search(message, genre, liked, disliked):
+    """Ask Claude which genres to exclude and what this user's taste is."""
+    if claude_key() == "":
+        return {"without_genres": [], "notes": ""}
 
     system_prompt = f"""
-You are a friendly movie recommendation chatbot.
-Turn the user's request into search filters for The Movie Database.
+The user already chose genre, language and runtime. Do not change those.
+Reply with:
+- without_genres: genres to EXCLUDE, from this list: {", ".join(sorted(GENRE_IDS))}
+  (no cartoons -> ["Animation"]; not for kids -> ["Animation", "Family"])
+- notes: what this user enjoys, based on their thumbs up and thumbs down
 
-Rules:
-- genre MUST be one of: {genres}
-- language MUST be one of: {languages}
-- min_runtime and max_runtime are integers in minutes (0 to 400)
-- Prefer movies similar to the liked list
-- Avoid movies on the disliked list, and suggest something different
-- Do not recommend titles already shown
-- reply should be 1-3 short friendly sentences explaining your picks
-
-Return ONLY JSON like:
-{{
-  "genre": "Comedy",
-  "language": "English",
-  "min_runtime": 0,
-  "max_runtime": 120,
-  "reply": "Looking for short comedies based on what you liked!"
-}}
+Return ONLY JSON:
+{{"without_genres": ["Animation"], "notes": "live-action, dark tone"}}
 """.strip()
 
     user_prompt = (
-        f"User message: {user_message}\n\n"
-        f"Liked (thumbs up): {liked_titles if liked_titles else 'none yet'}\n"
-        f"Disliked (thumbs down): {disliked_titles if disliked_titles else 'none yet'}\n"
-        f"Already shown (do not repeat): {already_shown if already_shown else 'none yet'}\n"
+        f"Request: {message}\n\n"
+        f"THUMBS UP:\n{feedback_list(liked)}\n\n"
+        f"THUMBS DOWN:\n{feedback_list(disliked)}"
     )
 
     try:
         answer = ask_claude(system_prompt, user_prompt)
-        plan = extract_json(answer)
-        return validate_plan(plan)
-    except Exception as err:
-        fallback = default_plan(user_message)
-        fallback["reply"] = (
-            f"I had trouble talking to Claude ({err}), "
-            "so I used default Comedy filters instead."
-        )
-        return fallback
+    except Exception:
+        return {"without_genres": [], "notes": ""}
+
+    # Never exclude the genre the user actually asked for.
+    without = [
+        name for name in answer.get("without_genres", [])
+        if name in GENRE_IDS and name != genre
+    ]
+    return {"without_genres": without, "notes": str(answer.get("notes", ""))}
 
 
-def split_titles(text):
-    """Turn a hidden-field string into a list of titles."""
-    if text is None or str(text).strip() == "":
-        return []
-    titles = []
-    for part in str(text).split("||"):
-        title = part.strip()
-        if title != "" and title not in titles:
-            titles.append(title)
-    return titles
+def pick_movies(message, candidates, liked, disliked, notes="", limit=5):
+    """Let Claude choose the best movies out of the real TMDB results."""
+    if claude_key() == "":
+        return candidates[:limit], "Claude is offline, showing the top TMDB matches."
+
+    catalog = "\n".join(
+        f"- {movie['title']} ({movie['year']}) rating {movie['rating']} "
+        f"- {movie['overview'][:150]}"
+        for movie in candidates
+    )
+
+    system_prompt = f"""
+Choose up to {limit} movies from the candidate list that best fit the user.
+Work out what their thumbs up movies have in common and match it.
+Steer away from what their thumbs down movies have in common.
+Drop anything that clashes with the request (e.g. cartoons if they want live action).
+Only use exact titles from the list.
+
+Return ONLY JSON:
+{{"chosen_titles": ["Title One"], "reply": "why these fit, 1-2 sentences"}}
+""".strip()
+
+    user_prompt = (
+        f"Request: {message}\n"
+        f"Notes: {notes or 'none'}\n\n"
+        f"THUMBS UP:\n{feedback_list(liked)}\n\n"
+        f"THUMBS DOWN:\n{feedback_list(disliked)}\n\n"
+        f"Candidates:\n{catalog}"
+    )
+
+    try:
+        answer = ask_claude(system_prompt, user_prompt)
+    except Exception:
+        return candidates[:limit], "Claude could not rank these, showing top matches."
+
+    by_title = {movie["title"].lower(): movie for movie in candidates}
+    picked = []
+    for title in answer.get("chosen_titles", []):
+        movie = by_title.get(str(title).strip().lower())
+        if movie is not None and movie not in picked:
+            picked.append(movie)
+
+    reply = str(answer.get("reply", "")).strip()
+    return (picked or candidates)[:limit], reply or "Here are your matches."
 
 
-def join_titles(titles):
-    """Turn a list of titles into a hidden-field string."""
-    clean = []
-    for title in titles:
-        title = str(title).strip()
-        if title != "" and title not in clean:
-            clean.append(title)
-    return "||".join(clean)
+def split_entries(text):
+    """Read one hidden form field back into a list."""
+    return [part.strip() for part in str(text or "").split("||") if part.strip()]
+
+
+def join_entries(entries):
+    """Write a list into one hidden form field."""
+    return "||".join(entries)
+
+
+def title_of(entry):
+    """The movie title is the part before '::'."""
+    return str(entry).split("::")[0].strip()
+
+
+def titles_of(entries):
+    return [title_of(entry) for entry in entries]

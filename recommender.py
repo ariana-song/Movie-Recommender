@@ -75,7 +75,8 @@ def resolve_language_code(language_name):
 
 
 def discover_movies(api_key, genre_map, genre_name, min_runtime, max_runtime,
-                     language="English", max_results=10):
+                     language="English", max_results=10, page=1,
+                     without_genres=None):
     """
     Query TMDB's discover endpoint using genre/runtime/language filters.
 
@@ -87,6 +88,8 @@ def discover_movies(api_key, genre_map, genre_name, min_runtime, max_runtime,
         max_runtime (int): maximum runtime in minutes.
         language (str): friendly language name or ISO code.
         max_results (int): max number of results to return.
+        page (int): TMDB results page (1, 2, 3, ...) for fresh batches.
+        without_genres (list): genre names to exclude, e.g. ["Animation"].
 
     Returns:
         list[dict]: raw TMDB movie result dicts.
@@ -105,7 +108,18 @@ def discover_movies(api_key, genre_map, genre_name, min_runtime, max_runtime,
         "with_runtime.lte": max_runtime,
         "with_original_language": resolve_language_code(language),
         "sort_by": "popularity.desc",
+        "page": page,
     }
+
+    # TMDB wants excluded genres as comma-separated numeric ids.
+    if without_genres:
+        exclude_ids = []
+        for name in without_genres:
+            if name in genre_map and genre_map[name] != genre_id:
+                exclude_ids.append(str(genre_map[name]))
+        if len(exclude_ids) > 0:
+            params["without_genres"] = ",".join(exclude_ids)
+
     resp = requests.get(f"{BASE_URL}/discover/movie", params=params)
     resp.raise_for_status()
     return resp.json()["results"][:max_results]
@@ -134,7 +148,8 @@ def clean_results(results):
 
 
 def get_recommendations(api_key, genre_name, min_runtime, max_runtime,
-                         language="English", max_results=10):
+                         language="English", max_results=10, page=1,
+                         without_genres=None):
     """
     Convenience wrapper: uses the local GENRE_IDS table, queries discover_movies,
     and returns cleaned results in one call. This is the function the UI
@@ -147,6 +162,8 @@ def get_recommendations(api_key, genre_name, min_runtime, max_runtime,
         max_runtime (int): maximum runtime in minutes.
         language (str): friendly language name or ISO code.
         max_results (int): max number of results to return.
+        page (int): TMDB results page for the next batch of movies.
+        without_genres (list): genre names to exclude, e.g. ["Animation"].
 
     Returns:
         list[dict]: cleaned movie results, or an empty list if none match.
@@ -154,6 +171,7 @@ def get_recommendations(api_key, genre_name, min_runtime, max_runtime,
     genre_map = GENRE_IDS
     raw_results = discover_movies(
         api_key, genre_map, genre_name, min_runtime, max_runtime,
-        language=language, max_results=max_results,
+        language=language, max_results=max_results, page=page,
+        without_genres=without_genres,
     )
     return clean_results(raw_results)
