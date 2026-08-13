@@ -1,17 +1,20 @@
 # Movie Recommender
 
-A movie recommender that lets a user filter by genre, runtime, and language, and returns a list of matching movies. Built on [The Movie Database (TMDB)](https://www.themoviedb.org/) API.
+A web-based movie recommender with a Claude-powered chatbot. Filter by genre, runtime, and language, describe what you're in the mood for, then rate the picks with thumbs up/down so the chatbot learns your taste. Built on [The Movie Database (TMDB)](https://www.themoviedb.org/) and [Anthropic Claude](https://www.anthropic.com/).
 
 ## Features
 
 - Filter movies by genre, runtime range, and language
-- Interactive notebook UI built with `ipywidgets`
-- Core logic separated into `recommender.py` so it's independently testable
+- Natural-language chat — tell Claude the vibe you're after
+- Thumbs up/down feedback that carries across requests
+- Deployable as a Flask app on [Vercel](https://vercel.com/)
+- Core logic in `recommender.py`, chat layer in `chatbot.py`, UI in `page_builder.py`
 
 ## Prerequisites
 
-- [Anaconda](https://www.anaconda.com/download) (or Miniconda)
+- Python 3.12+
 - A free [TMDB API key](https://www.themoviedb.org/settings/api)
+- An [Anthropic API key](https://console.anthropic.com/) (optional — without it the app falls back to top TMDB matches)
 
 ## Setup
 
@@ -22,7 +25,7 @@ git clone https://github.com/ariana-song/movie-recommender.git
 cd movie-recommender
 ```
 
-### 2. Create and activate a virtual environment (via Anaconda)
+### 2. Create and activate a virtual environment
 
 ```bash
 conda create -n movie-recommender python=3.12
@@ -37,10 +40,31 @@ pip install -r requirements.txt
 
 ### 4. Set your environment variables
 
-Create a file named `.env` in the project root with the following line:
+Copy `.env.example` to `.env` and fill in your keys:
 
 ```
 TMDB_API_KEY=your_actual_key_here
+ANTHROPIC_API_KEY=your_actual_key_here
 ```
 
-Replace `your_actual_key_here` with your own TMDB API key (get one free at https://www.themoviedb.org/settings/api). This file is excluded from version control via `.gitignore` and will never be committed.
+The `.env` file is excluded from version control and will never be committed.
+
+### 5. Run locally
+
+```bash
+python api/index.py
+```
+
+Open [http://127.0.0.1:5000](http://127.0.0.1:5000) in your browser.
+
+## Testing
+
+```bash
+pytest
+```
+
+Tests mock all external API calls, so no keys or network access are required.
+
+## Deployment
+
+The app is configured for Vercel via `vercel.json`. Set `TMDB_API_KEY` and `ANTHROPIC_API_KEY` as environment variables in your Vercel project settings.
