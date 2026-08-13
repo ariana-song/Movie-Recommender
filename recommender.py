@@ -49,22 +49,6 @@ LANGUAGE_MAP = {
 }
 
 
-def get_genre_map(api_key):
-    """
-    Fetch TMDB's movie genre list and return a {name: id} dict.
-
-    Args:
-        api_key (str): TMDB API key.
-
-    Returns:
-        dict: e.g. {"Action": 28, "Comedy": 35, ...}
-    """
-    resp = requests.get(f"{BASE_URL}/genre/movie/list", params={"api_key": api_key})
-    resp.raise_for_status()
-    genres = resp.json()["genres"]
-    return {g["name"]: g["id"] for g in genres}
-
-
 def resolve_language_code(language_name):
     """
     Map a friendly language name (e.g. "English") to its ISO 639-1 code
@@ -82,7 +66,7 @@ def discover_movies(api_key, genre_map, genre_name, min_runtime, max_runtime,
 
     Args:
         api_key (str): TMDB API key.
-        genre_map (dict): {name: id} mapping, from get_genre_map().
+        genre_map (dict): {name: id} mapping, e.g. GENRE_IDS.
         genre_name (str): e.g. "Comedy". Must exist in genre_map.
         min_runtime (int): minimum runtime in minutes.
         max_runtime (int): maximum runtime in minutes.
