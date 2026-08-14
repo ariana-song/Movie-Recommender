@@ -109,6 +109,14 @@ def test_pick_movies_unknown_title_falls_back(_mock_key, mock_ask):
     assert reply == "Here are your matches."
 
 
+@patch("chatbot.ask_claude", side_effect=ValueError("Claude error 429"))
+@patch("chatbot.claude_key", return_value="fake-key")
+def test_pick_movies_claude_failure(_mock_key, mock_ask):
+    movies, reply = pick_movies("funny", SAMPLE_MOVIES, [], [], limit=1)
+    assert movies == [SAMPLE_MOVIES[0]]
+    assert "could not rank" in reply.lower()
+
+
 @patch("chatbot.ask_claude")
 @patch("chatbot.claude_key", return_value="fake-key")
 def test_pick_movies_strips_year_from_title(_mock_key, mock_ask):

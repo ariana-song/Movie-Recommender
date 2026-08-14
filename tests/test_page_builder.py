@@ -4,7 +4,8 @@ tests/test_page_builder.py
 Tests for HTML page generation (no network required).
 """
 
-from page_builder import build_page, join_entries
+from page_builder import build_page
+from chatbot import join_entries
 
 BLANK_STATE = {
     "genre": "Comedy",

@@ -1,13 +1,11 @@
-# Run the pytest suite on every push and pull request to main.
-# Tests mock TMDb, so no API key or network access is required in CI.
+# Run the pytest suite on every push and pull request.
+# Tests mock TMDB and Claude, so no API key or network access is required in CI.
 
 name: Python application
 
 on:
   push:
-    branches: [ main ]
   pull_request:
-    branches: [ main ]
 
 jobs:
   build:

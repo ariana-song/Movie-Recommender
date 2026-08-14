@@ -103,14 +103,17 @@ RUNTIME_SCRIPT = """
 
 
 def safe(text):
+    """Escape text so it is safe to put inside HTML."""
     return escape(str(text)) if text is not None else ""
 
 
 def hidden(name, value):
+    """One hidden form field."""
     return f'<input type="hidden" name="{name}" value="{safe(value)}">'
 
 
 def dropdown(name, options, selected):
+    """A <select> menu with the current value marked selected."""
     html = f'<select name="{name}" id="{name}">'
     for option in options:
         chosen = " selected" if str(option) == str(selected) else ""
@@ -148,14 +151,8 @@ def build_form(state):
     html += (f'<p class="runtime-display" id="runtime_display">'
              f'{min_runtime} – {max_runtime} min</p>')
     html += '<div class="runtime-sliders">'
-    html += ('<div class="slider-row"><span class="slider-label">Min</span>'
-             f'<input type="range" name="min_runtime" id="min_runtime" '
-             f'min="0" max="400" step="5" value="{min_runtime}">'
-             f'<span class="slider-value" id="min_runtime_value">{min_runtime}</span></div>')
-    html += ('<div class="slider-row"><span class="slider-label">Max</span>'
-             f'<input type="range" name="max_runtime" id="max_runtime" '
-             f'min="0" max="400" step="5" value="{max_runtime}">'
-             f'<span class="slider-value" id="max_runtime_value">{max_runtime}</span></div>')
+    html += runtime_slider("min", min_runtime)
+    html += runtime_slider("max", max_runtime)
     html += "</div></div>"
 
     html += '<div class="box"><p class="step">Step 2 - tell the chatbot</p>'
@@ -165,6 +162,17 @@ def build_form(state):
              f'{safe(state["last_message"])}</textarea>')
     html += '<button type="submit">Find movies</button></div></form>'
     return html
+
+
+def runtime_slider(bound, value):
+    """One min or max runtime slider row. bound is 'min' or 'max'."""
+    name = f"{bound}_runtime"
+    return (
+        f'<div class="slider-row"><span class="slider-label">{bound.title()}</span>'
+        f'<input type="range" name="{name}" id="{name}" '
+        f'min="0" max="400" step="5" value="{value}">'
+        f'<span class="slider-value" id="{name}_value">{value}</span></div>'
+    )
 
 
 def thumb_form(movie, state, action, label):
@@ -180,6 +188,7 @@ def thumb_form(movie, state, action, label):
 
 
 def build_card(movie, state):
+    """One movie result card, including thumbs up/down forms."""
     html = '<div class="card">'
     html += f'<h3>{safe(movie["title"])} ({safe(movie["year"])})</h3>'
     html += f'<div class="facts"><span class="rating">&#9733; {safe(movie["rating"])}</span></div>'
@@ -191,6 +200,7 @@ def build_card(movie, state):
 
 
 def build_results(state, movies, reply, error):
+    """Claude's reply plus movie cards, or an error message."""
     if error:
         return f'<div class="problem">&#10060; Error: {safe(error)}</div>'
 
@@ -209,6 +219,7 @@ def build_results(state, movies, reply, error):
 
 
 def build_page(state, movies=None, reply=None, error=None):
+    """Full HTML page: filters, chat box, results, and thumbs memory."""
     liked = ", ".join(titles_of(state["liked"])) or "none yet"
     disliked = ", ".join(titles_of(state["disliked"])) or "none yet"
 

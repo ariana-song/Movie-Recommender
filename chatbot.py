@@ -24,6 +24,7 @@ CLAUDE_MODEL = "claude-sonnet-5"
 
 
 def claude_key():
+    """Return the Anthropic API key from the environment, or "" if missing."""
     return (os.getenv("ANTHROPIC_API_KEY") or "").strip()
 
 
@@ -174,4 +175,5 @@ def title_of(entry):
 
 
 def titles_of(entries):
+    """Return just the movie titles from a list of feedback entries."""
     return [title_of(entry) for entry in entries]

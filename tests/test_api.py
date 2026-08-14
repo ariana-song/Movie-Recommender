@@ -70,6 +70,15 @@ def test_read_state_ignores_invalid_genre():
     assert state["genre"] == "Comedy"
 
 
+def test_read_state_invalid_runtime_uses_defaults():
+    state = read_state({
+        "min_runtime": "abc",
+        "max_runtime": "",
+    })
+    assert state["min_runtime"] == "0"
+    assert state["max_runtime"] == "150"
+
+
 @patch("api.index.run_chat")
 def test_post_chat_action(mock_run_chat, client):
     mock_run_chat.return_value = (FAKE_MOVIES, "Here you go.", None)
@@ -127,6 +136,21 @@ def test_save_feedback_adds_liked_entry():
         save_feedback(state, "like")
     assert len(state["liked"]) == 1
     assert "Superbad" in state["liked"][0]
+
+
+def test_save_feedback_dislike_moves_off_liked():
+    state = blank_state()
+    state["liked"] = [LIKED_ENTRY]
+    with app.test_request_context("/", method="POST", data={
+        "movie_title": "Superbad",
+        "movie_year": "2007",
+        "movie_rating": "7.2",
+        "movie_overview": "Two friends try to buy alcohol for a party.",
+    }):
+        save_feedback(state, "dislike")
+    assert state["liked"] == []
+    assert len(state["disliked"]) == 1
+    assert "Superbad" in state["disliked"][0]
 
 
 @patch.dict("os.environ", {"TMDB_API_KEY": ""})

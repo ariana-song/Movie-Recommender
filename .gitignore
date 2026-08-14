@@ -1,5 +1,7 @@
-# Secrets
+# Secrets — never commit API keys
 .env
+.env.*
+!.env.example
 
 # Python
 __pycache__/
@@ -7,6 +9,7 @@ __pycache__/
 .pytest_cache/
 .venv/
 venv/
+env/
 
 # Jupyter
 .ipynb_checkpoints/
@@ -16,3 +19,4 @@ venv/
 
 # OS
 .DS_Store
+Thumbs.db

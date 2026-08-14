@@ -29,6 +29,7 @@ FEEDBACK_HINT = {
 
 
 def blank_state():
+    """Default filters and empty thumbs memory for a new visitor."""
     return {
         "genre": "Comedy",
         "language": "English",
@@ -42,6 +43,7 @@ def blank_state():
 
 
 def to_int(value, fallback):
+    """Parse an integer from form input, or return fallback if it is not a number."""
     try:
         return int(value)
     except (TypeError, ValueError):
@@ -147,6 +149,10 @@ def run_chat(state, message):
 @app.route("/", defaults={"path": ""}, methods=["GET", "POST"])
 @app.route("/<path:path>", methods=["GET", "POST"])
 def home(path):
+    """
+    Handle every URL. Vercel rewrites all traffic to this file, so unknown
+    paths still need to land on the same page instead of a Flask 404.
+    """
     if request.method == "GET":
         return build_page(blank_state())
 

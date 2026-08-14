@@ -1,6 +1,7 @@
 """
 tests/test_recommender.py
 
+Bare-bones pytest suite for TMDB helpers. API calls are mocked so tests run offline.
 """
 
 from unittest.mock import MagicMock, patch
@@ -86,6 +87,20 @@ def test_discover_movies_unknown_genre():
 def test_discover_movies_bad_runtime():
     with pytest.raises(ValueError):
         discover_movies("fake-key", GENRE_IDS, "Comedy", 200, 90)
+
+
+@patch("recommender.requests.get")
+def test_discover_movies_without_genres(mock_get):
+    mock_get.return_value = make_fake_response({"results": FAKE_RESULTS})
+
+    discover_movies(
+        "fake-key", GENRE_IDS, "Comedy", 90, 150,
+        language="English", max_results=2, without_genres=["Animation", "Comedy"],
+    )
+
+    params = mock_get.call_args.kwargs["params"]
+    # Comedy is the requested genre, so it should not also be excluded.
+    assert params["without_genres"] == "16"
 
 
 @patch("recommender.requests.get")
