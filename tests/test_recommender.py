@@ -1,7 +1,6 @@
 """
 tests/test_recommender.py
 
-Bare-bones pytest suite. API calls are mocked so tests run offline.
 """
 
 from unittest.mock import MagicMock, patch

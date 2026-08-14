@@ -41,7 +41,10 @@ def ask_claude(system_prompt, user_prompt):
     }
     body = {
         "model": CLAUDE_MODEL,
-        "max_tokens": 2000,
+        "max_tokens": 1024,
+        # Sonnet 5 thinks by default; thinking tokens count toward max_tokens
+        # and were cutting off the JSON reply.
+        "thinking": {"type": "disabled"},
         "system": system_prompt,
         "messages": [{"role": "user", "content": user_prompt}],
     }
@@ -121,7 +124,7 @@ Choose up to {limit} movies from the candidate list that best fit the user.
 Work out what their thumbs up movies have in common and match it.
 Steer away from what their thumbs down movies have in common.
 Drop anything that clashes with the request (e.g. cartoons if they want live action).
-Only use exact titles from the list.
+Only use exact titles from the list. Do not add the year.
 
 Return ONLY JSON:
 {{"chosen_titles": ["Title One"], "reply": "why these fit, 1-2 sentences"}}
@@ -143,7 +146,11 @@ Return ONLY JSON:
     by_title = {movie["title"].lower(): movie for movie in candidates}
     picked = []
     for title in answer.get("chosen_titles", []):
-        movie = by_title.get(str(title).strip().lower())
+        name = str(title).strip().lower()
+        movie = by_title.get(name)
+        # Claude sometimes returns "Title (2024)" instead of just "Title".
+        if movie is None and " (" in name:
+            movie = by_title.get(name.split(" (")[0].strip())
         if movie is not None and movie not in picked:
             picked.append(movie)
 

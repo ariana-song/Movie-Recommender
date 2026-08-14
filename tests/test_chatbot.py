@@ -107,3 +107,15 @@ def test_pick_movies_unknown_title_falls_back(_mock_key, mock_ask):
     movies, reply = pick_movies("funny", SAMPLE_MOVIES, [], [], limit=5)
     assert movies == SAMPLE_MOVIES
     assert reply == "Here are your matches."
+
+
+@patch("chatbot.ask_claude")
+@patch("chatbot.claude_key", return_value="fake-key")
+def test_pick_movies_strips_year_from_title(_mock_key, mock_ask):
+    mock_ask.return_value = {
+        "chosen_titles": ["The Hangover (2009)"],
+        "reply": "A match.",
+    }
+    movies, reply = pick_movies("funny", SAMPLE_MOVIES, [], [], limit=5)
+    assert movies == [SAMPLE_MOVIES[1]]
+    assert reply == "A match."
